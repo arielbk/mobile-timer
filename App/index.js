@@ -1,53 +1,82 @@
 // initial guidance from https://dev.to/nabendu82/simple-timer-app-with-react-native-434i
 
-import React, { useState, useEffect } from 'react';
+import React, { useReducer } from 'react';
 import { StyleSheet, Text, View, StatusBar, TouchableOpacity, Dimensions } from 'react-native';
 const screen = Dimensions.get('window');
 
 const formatNumber = number => `0${number}`.slice(-2);
+
 const getRemaining = time => {
   const mins = Math.floor(time / 60);
   const secs = time - mins * 60;
   return { mins: formatNumber(mins), secs: formatNumber(secs) };
 }
 
+const initialState = {
+  millisSaved: 0,
+  lastStarted: 0,
+  isActive: false,
+};
+
+const reducer = (state, action) => {
+  switch (action.type) {
+    case 'start':
+      return {
+        millisSaved: 0,
+        lastStarted: action.payload,
+        isActive: true,
+      }
+    case 'pause':
+      return {
+        millisSaved: state.millisSaved + action.payload - state.lastStarted,
+        lastStarted: null,
+        isActive: false,
+      }
+    case 'resume':
+      return {
+        millisSaved: state.millisSaved,
+        lastStarted: action.payload,
+        isActive: true,
+      }
+    case 'reset':
+      return { ...initialState };
+    default:
+      throw new Error();
+  }
+}
+
+
 export default function App() {
-  const [remainingSecs, setRemainingSecs] = useState(0);
-  const [isActive, setIsActive] = useState(false);
-  const {  mins, secs } = getRemaining(remainingSecs);
-
-  const toggle = () => setIsActive(prev => !prev);
-  const reset = () => {
-    setRemainingSecs(0);
-    setIsActive(false);
-  };
-
-  useEffect(() => {
-    let interval = null;
-    if (isActive) {
-      interval = setInterval(() => {
-        setRemainingSecs(remainingSecs => remainingSecs + 1);
-      }, 1000);
-    } else if (!isActive && remainingSecs !== 0) {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  });
+  const [state, dispatch] = useReducer(reducer, initialState);
+  
+  const handleStart = () => dispatch({ type: 'start', payload: new Date().getTime() });
+  const handlePause = () => dispatch({ type: 'pause', payload: new Date().getTime() });
+  const handleResume = () => dispatch({ type: 'resume', payload: new Date().getTime() });
+  const handleReset = () => dispatch({ type: 'reset' });
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
+
       <Text style={styles.timerText}>
-        {`${mins}:${secs}`}
+        {state.isActive
+          ? state.millisSaved + new Date().getTime() - state.lastStarted
+          : state.millisSaved
+        }
       </Text>
-      <TouchableOpacity onPress={toggle} style={styles.button}>
-        <Text style={styles.buttonText}>
-          {isActive ? 'Pause' : 'Start'}
+
+      <TouchableOpacity onPress={handleReset} style={[styles.buttonReset]}>
+        <Text style={[styles.buttonText, styles.buttonTextReset]}>
+          Reset
         </Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={reset} style={[styles.button, styles.buttonReset]}>
-        <Text style={[styles.buttonText, styles.buttonTextReset]}>Reset</Text>
+
+      <TouchableOpacity onPress={state.isActive ? handlePause : state.millisSaved ? handleResume : handleStart} style={styles.button}>
+        <Text style={styles.buttonText}>
+          {state.isActive ? 'Pause' : state.millisSaved ? 'Resume' : 'Start'}
+        </Text>
       </TouchableOpacity>
+
     </View>
   );
 }
@@ -55,13 +84,13 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#07121b',
+    backgroundColor: '#111B1F',
     alignItems: 'center',
     justifyContent: 'center',
   },
   button: {
-    borderWidth: 10,
-    borderColor: '#b9aaff',
+    borderWidth: 6,
+    borderColor: '#B4D6E3',
     width: screen.width / 2,
     height: screen.width / 2,
     borderRadius: screen.width / 2,
@@ -70,18 +99,18 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 45,
-    color: '#b9aaff',
+    color: '#B4D6E3',
   },
   timerText: {
     color: '#fff',
-    fontSize: 90,
+    fontSize: 110,
     marginBottom: 20,
   },
   buttonReset: {
-    marginTop: 20,
-    borderColor: '#ff851b',
+    marginBottom: 120,
   },
   buttonTextReset: {
-    color: '#ff851b',
+    fontSize: 30,
+    color: '#999999',
   },
 });
