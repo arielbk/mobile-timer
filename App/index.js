@@ -1,15 +1,18 @@
 // initial guidance from https://dev.to/nabendu82/simple-timer-app-with-react-native-434i
 
-import React, { useReducer } from 'react';
+import React, { useState, useReducer, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View, StatusBar, TouchableOpacity, Dimensions } from 'react-native';
 const screen = Dimensions.get('window');
 
-const formatNumber = number => `0${number}`.slice(-2);
-
-const getRemaining = time => {
-  const mins = Math.floor(time / 60);
-  const secs = time - mins * 60;
-  return { mins: formatNumber(mins), secs: formatNumber(secs) };
+const formatMillis = time => {
+  const mins = Math.floor(time / 1000 / 60);
+  const secs = Math.floor(time / 1000 - mins * 60);
+  const millis = time - mins * 60 * 1000 - secs * 1000;
+  return {
+    minutes: String(mins).padStart(2, '0'),
+    seconds: String(secs).padStart(2, '0'),
+    milliseconds: String(millis).padStart(3, '0')
+  }
 }
 
 const initialState = {
@@ -48,21 +51,36 @@ const reducer = (state, action) => {
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  
+  const [millis, setMillis] = useState(0);
+  const interval = useRef();
+
   const handleStart = () => dispatch({ type: 'start', payload: new Date().getTime() });
   const handlePause = () => dispatch({ type: 'pause', payload: new Date().getTime() });
   const handleResume = () => dispatch({ type: 'resume', payload: new Date().getTime() });
-  const handleReset = () => dispatch({ type: 'reset' });
+  const handleReset = () => {
+    setMillis(0);
+    dispatch({ type: 'reset' })
+  };
+
+  useEffect(() => {
+    if (state.isActive) {
+      interval.current = setInterval(() => {
+        setMillis(state.millisSaved + new Date().getTime() - state.lastStarted)
+      }, 1);
+    } else {
+      clearInterval(interval.current);
+    }
+  }, [state.isActive]);
+
+  const {minutes, seconds, milliseconds} = formatMillis(millis);
 
   return (
     <View style={styles.container}>
+
       <StatusBar barStyle="light-content" />
 
       <Text style={styles.timerText}>
-        {state.isActive
-          ? state.millisSaved + new Date().getTime() - state.lastStarted
-          : state.millisSaved
-        }
+        {minutes}:{seconds}:{milliseconds}
       </Text>
 
       <TouchableOpacity onPress={handleReset} style={[styles.buttonReset]}>
@@ -103,7 +121,7 @@ const styles = StyleSheet.create({
   },
   timerText: {
     color: '#fff',
-    fontSize: 110,
+    fontSize: 80,
     marginBottom: 20,
   },
   buttonReset: {
